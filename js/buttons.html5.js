@@ -1036,11 +1036,13 @@ DataTable.ext.buttons.excelHtml5 = {
 				// Concat both the Cell Columns as a letter and the Row of the cell.
 				var cellId = createCellPos(i) + '' + currentRow;
 				var cell = null;
-
+                
+                /* Actually, some of us want to export blank cells so we can style them
 				// For null, undefined of blank cell, continue so it doesn't create the _createNode
 				if ( row[i] === null || row[i] === undefined || row[i] === '' ) {
 					continue;
 				}
+                 */
 
 				row[i] = $.trim( row[i] );
 
