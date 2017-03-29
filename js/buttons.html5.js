@@ -483,9 +483,17 @@ function _addToZip( zip, obj ) {
 
 			// Safari, IE and Edge will put empty name space attributes onto
 			// various elements making them useless. This strips them out
-			str = str.replace( /<(.*?) xmlns=""(.*?)>/g, '<$1 $2>' );
-
-			zip.file( name, str );
+			
+            // The original replace was poorly written and not optimized,
+            // the original used wildcards that would have run the REGEX
+            // for every single character in the string
+            // All that is needed is to do a simple replace, no REGEX required
+            
+            //(the original is improved in v1.2.5, but I still think this is superior)            
+            //str = str.replace( /<(.*?) xmlns=""(.*?)>/g, '<$1 $2>' );
+            str = str.replace(' xmlns=""', '');
+            
+            zip.file( name, str );
 		}
 	} );
 }
