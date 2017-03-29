@@ -30,7 +30,7 @@
 		* Edge: Yes
 		* Chrome: Yes
 		* Opera: Yes
-		* Safari: Yes (tech preview 18+) Safari 10.0.1 and earlier are _not_ supported.
+		* Safari: Yes (tech preview 18+) Safari 10.0.x and earlier are _not_ supported.
 
 
 		## Customisation
@@ -112,7 +112,7 @@
 		* `17` - Bold, green background
 		* `18` - Italic, green background
 		* `19` - Underline, green background
-		* `10` - Normal text, blue background
+		* `20` - Normal text, blue background
 		* `21` - White text, blue background
 		* `22` - Bold, blue background
 		* `23` - Italic, blue background
