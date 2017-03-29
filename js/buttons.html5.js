@@ -1154,35 +1154,48 @@ DataTable.ext.buttons.excelHtml5 = {
 		}
 
 		// Let the developer customise the document if they want to
+        var customized;
 		if ( config.customize ) {
-			config.customize( xlsx );
+			customized = config.customize( xlsx );
 		}
+        
+        var zipIt = function () {
+            var jszip = _jsZip();
+            var zip = new jszip();
+            var zipConfig = {
+                type: 'blob',
+                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            };
 
-		var jszip = _jsZip();
-		var zip = new jszip();
-		var zipConfig = {
-			type: 'blob',
-			mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-		};
+            _addToZip( zip, xlsx );
 
-		_addToZip( zip, xlsx );
-
-		if ( zip.generateAsync ) {
-			// JSZip 3+
-			zip
-				.generateAsync( zipConfig )
-				.then( function ( blob ) {
-					_saveAs( blob, _filename( config ) );
-				} );
-		}
-		else {
-			// JSZip 2.5
-			_saveAs(
-				zip.generate( zipConfig ),
-				_filename( config )
-			);
-		}
-	},
+            if ( zip.generateAsync ) {
+                // JSZip 3+
+                zip
+                    .generateAsync( zipConfig )
+                    .then( function ( blob ) {
+                        _saveAs( blob, _filename( config ) );
+                    } );
+            }
+            else {
+                // JSZip 2.5
+                _saveAs(
+                    zip.generate( zipConfig ),
+                    _filename( config )
+                );
+            }
+        };
+        
+        //when the document is finished being customized, if it returned a promise
+        if (customized && typeof customized.then == "function") {
+            //finish once the promise is done
+            customized.then(zipIt, zipIt).done();
+        }
+        else {
+            //finish now
+            zipIt();
+        }
+    },
 
 	filename: '*',
 
