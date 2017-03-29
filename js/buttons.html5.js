@@ -257,20 +257,30 @@ var _filename = function ( config, incExtension )
 		filename;
 };
 
+// Support the export of multiple sheets   
 /**
  * Get the sheet name for Excel exports.
  *
  * @param {object}	config Button configuration
+ * @param {int}     1-based index of sheet
  */
-var _sheetname = function ( config )
+var _sheetname = function ( config, i )
 {
-	var sheetName = 'Sheet1';
+    //default sheet name
+	var sheetName = 'Sheet'+i;
 
-	if ( config.sheetName ) {
-		sheetName = config.sheetName.replace(/[\[\]\*\/\\\?\:]/g, '');
+    //if sheetName isn't an array
+    if (!Array.isArray(config.sheetName)) {
+        //make it so
+        config.sheetName = [config.sheetName];
+    }
+
+    //if this sheet name exists
+	if ( config.sheetName[i-1] ) {
+		sheetName = config.sheetName[i-1].replace(/[\[\]\*\/\\\?\:]/g, '');
 	}
 
-return sheetName;
+    return sheetName;
 };
 
 /**
@@ -1006,8 +1016,7 @@ DataTable.ext.buttons.excelHtml5 = {
 			return $.parseXML( str );
 		};
 		var rels = getXml('xl/worksheets/sheet1.xml');
-		var relsGet = rels.getElementsByTagName( "sheetData" )[0];
-
+		
 		var xlsx = {
 			_rels: {
 				".rels": getXml('_rels/.rels')
@@ -1025,13 +1034,26 @@ DataTable.ext.buttons.excelHtml5 = {
 			},
 			"[Content_Types].xml": getXml('[Content_Types].xml')
 		};
+        
+        
+        // Support the export of multiple sheets   
+        var workbookRels = $('Relationships', xlsx.xl._rels["workbook.xml.rels"]);
+        var workbookSheets = $( 'sheets', xlsx.xl['workbook.xml'] );
+        //get the first sheet
+        var firstSheet = workbookSheets.find('sheet:first-child');   
 
+        
 		var data = dt.buttons.exportData( config.exportOptions );
 		var currentRow, rowNode;
-		var addRow = function ( row ) {
-			currentRow = rowPos+1;
+        var sheetFilename, curRels;
+        
+		// Support the export of multiple sheets   
+        var addRow = function ( row, rels ) {
+			var relsGet = rels.getElementsByTagName( "sheetData" )[0];
+            
+            currentRow = rowPos+1;
 			rowNode = _createNode( rels, "row", { attr: {r:currentRow} } );
-
+            
 			for ( var i=0, ien=row.length ; i<ien ; i++ ) {
 				// Concat both the Cell Columns as a letter and the Row of the cell.
 				var cellId = createCellPos(i) + '' + currentRow;
@@ -1120,41 +1142,87 @@ DataTable.ext.buttons.excelHtml5 = {
 			rowPos++;
 		};
 
-		$( 'sheets sheet', xlsx.xl['workbook.xml'] ).attr( 'name', _sheetname( config ) );
+		// Support the export of multiple sheets   
 
-		if ( config.customizeData ) {
-			config.customizeData( data );
+        if ( config.customizeData ) {
+			customized = config.customizeData( data );
+            //the customizeData function may either modify data in place, 
+            //or return new data (object or array)
+            if (customized && typeof customized == "object") {
+                data = customized;
+            }
 		}
+        
+        //if new data isn't an array (likely, unless user added second sheet to it)
+        if (!Array.isArray(data)) {
+            //make it so
+            data = [data];
+        }
+        
+        //loop data
+        for (var s=0; s<data.length; s++) {
+            //increment s
+            s++;
+            //reset rowPos
+            rowPos = 0;
+            //if this isn't the first sheet
+            if (s > 1) {
+                //create new sheet
+                sheetFilename = 'sheet'+s+'.xml';
+                curRels = getXml('xl/worksheets/sheet1.xml');
+                xlsx.xl.worksheets[sheetFilename] = curRels;
+                //create new relationship
+                workbookRels.find('Relationship:first-child').clone()
+                    .appendTo(workbookRels).attr({
+                        Id: 'rId'+(s+1),
+                        Target: 'worksheets/'+sheetFilename
+                    });
+                //add sheet to workbork
+                firstSheet.clone().appendTo(workbookSheets).attr({
+                    sheetId: s,
+                    'r:id': 'rId'+(s+1),
+                    name: _sheetname( config, s )
+                });
+            }
+            else {
+                //store first sheet
+                curRels = rels;
+                //assign name of first sheet
+                firstSheet.attr( 'name', _sheetname( config, s ) );
+            }
+            
+            //decrement s
+            s--;
+            if ( config.header ) {
+                addRow( data[s].header, curRels );
+                $('row c', curRels).attr( 's', '2' ); // bold
+            }
 
-		if ( config.header ) {
-			addRow( data.header, rowPos );
-			$('row c', rels).attr( 's', '2' ); // bold
-		}
+            for ( var n=0, ie=data[s].body.length ; n<ie ; n++ ) {
+                addRow( data[s].body[n], curRels );
+            }
 
-		for ( var n=0, ie=data.body.length ; n<ie ; n++ ) {
-			addRow( data.body[n], rowPos );
-		}
+            if ( config.footer && data[s].footer ) {
+                addRow( data[s].footer, curRels);
+                $('row:last c', curRels).attr( 's', '2' ); // bold
+            }
 
-		if ( config.footer && data.footer ) {
-			addRow( data.footer, rowPos);
-			$('row:last c', rels).attr( 's', '2' ); // bold
-		}
+            // Set column widths
+            var cols = _createNode( curRels, 'cols' );
+            $('worksheet', curRels).prepend( cols );
 
-		// Set column widths
-		var cols = _createNode( rels, 'cols' );
-		$('worksheet', rels).prepend( cols );
-
-		for ( var i=0, ien=data.header.length ; i<ien ; i++ ) {
-			cols.appendChild( _createNode( rels, 'col', {
-				attr: {
-					min: i+1,
-					max: i+1,
-					width: _excelColWidth( data, i ),
-					customWidth: 1
-				}
-			} ) );
-		}
-
+            for ( var i=0, ien=data[s].header.length ; i<ien ; i++ ) {
+                cols.appendChild( _createNode( curRels, 'col', {
+                    attr: {
+                        min: i+1,
+                        max: i+1,
+                        width: _excelColWidth( data[s], i ),
+                        customWidth: 1
+                    }
+                } ) );
+            }
+        }
+        
 		// Let the developer customise the document if they want to
         var customized;
 		if ( config.customize ) {
