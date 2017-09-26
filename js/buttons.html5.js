@@ -491,7 +491,7 @@ function _addToZip( zip, obj ) {
  * @return {node}            Created node
  */
 function _createNode( doc, nodeName, opts ) {
-	var tempNode = doc.createElement( nodeName );
+	var tempNode = doc.createElementNS( excelMainNamespace, nodeName );
 
 	if ( opts ) {
 		if ( opts.attr ) {
@@ -560,6 +560,7 @@ function _excelColWidth( data, col ) {
 }
 
 // Excel - Pre-defined strings to build a basic XLSX file
+var excelMainNamespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 var excelStrings = {
 	"_rels/.rels":
 		'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
